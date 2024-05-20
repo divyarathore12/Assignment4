@@ -1,0 +1,33 @@
+trigger QuoteItemTrigger on Quote_Item__c (before insert,after insert,after update,after delete) {
+    if(Trigger.isInsert)
+    {
+//check uniqueness.
+        if(Trigger.isbefore)
+        {
+            QuoteTriggerHandler.checkUniqueQuoteName(Trigger.new);
+        }
+// trigger for insert operation
+        if(Trigger.isafter){
+        QuoteTriggerHandler.handleAfterInsert(Trigger.new);
+        }
+        
+    }
+// trigger for update operation
+    if(Trigger.isUpdate)
+    {
+        
+        if(Trigger.isafter)
+        {
+            QuoteTriggerHandler.handleAfterUpdate(Trigger.new,Trigger.oldMap);
+        }
+    }
+// trigger for delete operation
+    if(Trigger.isDelete)
+    {
+        if(Trigger.isafter)
+        {
+            QuoteTriggerHandler.handleAfterDelete(Trigger.old);
+        }
+    }
+
+}
