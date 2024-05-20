@@ -1,0 +1,7 @@
+trigger QuoteTrigger on quote__c (after update) {
+    // trigger for recalcalculate totals if  quote fields like shipping rate or tax rate are changed.
+         if(Trigger.isUpdate&&Trigger.isafter)
+         {
+             QuoteTriggerHandler.handleQuoteAfterUpdate(Trigger.new,Trigger.oldMap);
+         }
+}
