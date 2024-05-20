@@ -1,0 +1,97 @@
+public class QuoteTriggerHandler {
+
+    // Handles updates to a quote, recalculating totals if shipping or tax rates change
+    public static void handleQuoteAfterUpdate(List<quote__c> quotes, Map<Id, quote__c> oldQuoteMap) {
+        for (quote__c quote : quotes) {
+            quote__c oldQuote = oldQuoteMap.get(quote.Id);
+            if ((oldQuote.ShippingRate__c != quote.ShippingRate__c) || (oldQuote.TaxRate__c != quote.TaxRate__c)) {
+                calculateTotal(quote.Id);
+            }
+        }
+    }
+    
+    // Recalculates totals after quote items are deleted
+    public static void handleAfterDelete(List<Quote_Item__c> quoteItems) {
+        if (quoteItems.isEmpty()) return;
+        Id quoteId = quoteItems[0].quote__c;
+        calculateTotal(quoteId);
+        System.debug('Deleted Successfully');
+    }
+
+    // Recalculates totals after quote items are inserted
+    public static void handleAfterInsert(List<Quote_Item__c> quoteItems) {
+        if (quoteItems.isEmpty()) return;
+        Id quoteId = quoteItems[0].quote__c;
+        calculateTotal(quoteId);
+    }
+
+    // Recalculates totals if relevant fields of quote items are updated
+    public static void handleAfterUpdate(List<Quote_Item__c> quoteItems, Map<Id, Quote_Item__c> oldQuoteItemMap) {
+        if (quoteItems.isEmpty()) return;
+        Id quoteId = quoteItems[0].quote__c;
+        Id quoteItemId = quoteItems[0].Id;
+        Quote_Item__c currentQuoteItem = quoteItems[0];
+        Quote_Item__c oldQuoteItem = oldQuoteItemMap.get(quoteItemId);
+        if ((oldQuoteItem.Quantity__c != currentQuoteItem.Quantity__c) ||
+            (oldQuoteItem.UnitPrice__c != currentQuoteItem.UnitPrice__c) ||
+            (oldQuoteItem.UnitWeight__c != currentQuoteItem.UnitWeight__c)) {
+            calculateTotal(quoteId);
+        }
+    }
+
+    // function to check uniquness of quote items under a quote
+    public static void checkUniqueQuoteName(List<Quote_Item__c> quoteItems) {
+        if (quoteItems.isEmpty()) return;
+        Id quoteId = quoteItems[0].quote__c;
+        String name = quoteItems[0].Name;
+        List<Quote_Item__c> existingQuotes = [SELECT Name FROM Quote_Item__c WHERE Name = :name AND quote__c = :quoteId];
+        if (!existingQuotes.isEmpty()) {
+            
+                quoteItems[0].addError('A quote with the same name already exists. Click <insert link here> to go to the existing quote');
+        }
+    }
+
+    // Calculates and updates the total fields on a quote
+    public static void calculateTotal(Id quoteId) {
+        quote__c quote = [SELECT ShippingRate__c, TaxRate__c, ShippingDiscount__c, Subtotal__c, TotalShipping__c, TotalTax__c, TotalWeight__c, GrandTotal__c
+                          FROM quote__c WHERE Id = :quoteId LIMIT 1];
+
+        if (quote == null) {
+            System.debug('Quote is null for Id: ' + quoteId);
+            return;
+        }
+
+
+        List<Quote_Item__c> quoteItems = [SELECT UnitPrice__c, UnitWeight__c, Quantity__c FROM Quote_Item__c WHERE quote__c = :quoteId];
+        double totalWeight = 0, subTotal = 0;
+        for (Quote_Item__c item : quoteItems) {
+            if (item.UnitPrice__c != null && item.Quantity__c != null) {
+                subTotal += item.UnitPrice__c * item.Quantity__c;
+            }
+            if (item.UnitWeight__c != null && item.Quantity__c != null) {
+                totalWeight += item.UnitWeight__c * item.Quantity__c;
+            }
+        }
+        System.debug('shipping Rate: ' + quote.ShippingRate__c );
+        System.debug('SubTotal: ' + subTotal);
+        System.debug('TotalWeight: ' + totalWeight);
+
+        quote.TotalShipping__c = quote.ShippingRate__c * totalWeight;
+        quote.TotalTax__c = (quote.TaxRate__c * subTotal) / 100;
+        quote.Subtotal__c = subTotal;
+        quote.TotalWeight__c = totalWeight;
+System.debug('Total Shipping: ' + quote.TotalShipping__c );
+        if (subTotal >= 100) {
+            quote.ShippingDiscount__c = quote.TotalShipping__c;
+        } else {
+            quote.ShippingDiscount__c = 0;
+        }
+
+        quote.GrandTotal__c = quote.TotalShipping__c + quote.TotalTax__c + quote.Subtotal__c - quote.ShippingDiscount__c;
+
+        System.debug('GrandTotal: ' + quote.GrandTotal__c);
+
+        update quote;
+
+    }
+}
