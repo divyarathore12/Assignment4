@@ -1,0 +1,143 @@
+@isTest(SeeAllData=true)
+public class QuoteTriggerHandlerTest {
+
+    @isTest
+    public static void testInsertQuoteItem() {
+        // Create and insert a new Quote
+        quote__c q = new quote__c(Name = 'Quo');
+        insert q;
+
+        // Create and insert a new Quote Item
+        Quote_Item__c q1 = new Quote_Item__c(Name = 'Sample Quote Item', UnitPrice__c = 10, UnitWeight__c = 10, Quantity__c = 10, quote__c = q.Id);
+        
+        Test.startTest();
+        insert q1;
+        Test.stopTest();
+
+        // Verify Quote totals after inserting a Quote Item
+        q = [SELECT Id, Subtotal__c, TotalShipping__c, TotalTax__c, GrandTotal__c FROM quote__c WHERE Id = :q.Id];
+        System.debug('Fetched Quote Subtotal__c: ' + q.Subtotal__c);
+        System.assertEquals(100, q.Subtotal__c, 'Subtotal should be 100');
+        System.assertEquals(150, q.TotalShipping__c, 'Total Shipping should be 150');
+        System.assertEquals(9.25, q.TotalTax__c, 'Total Tax should be 9.25');
+        System.assertEquals(109.25, q.GrandTotal__c, 'Grand Total should be 109.25');
+    }
+@isTest
+    public static void testUniqueQuoteItemName() {
+        // Create and insert a new Quote
+        quote__c q = new quote__c(Name = 'Sample Quote');
+        insert q;
+
+        // Create and insert the first Quote Item with a unique name
+        Quote_Item__c q1 = new Quote_Item__c(Name = 'Sample Quote Item', UnitPrice__c = 10, UnitWeight__c = 10, Quantity__c = 10, quote__c = q.Id);
+        insert q1;
+
+        // Attempt to create and insert a second Quote Item with the same name under the same parent Quote
+        Quote_Item__c q2 = new Quote_Item__c(Name = 'Sample Quote Item', UnitPrice__c = 15, UnitWeight__c = 5, Quantity__c = 5, quote__c = q.Id);
+
+       Test.startTest();
+        try {
+            insert q2;
+            System.assert(false, 'Expected a DmlException due to duplicate Quote Item name');
+        } catch (DmlException e) {
+            // Verify that the correct error message is thrown
+            System.assert(e.getMessage().contains('A quote item with the same name already exists under this quote.'), 'Unexpected error message: ' + e.getMessage());
+        }
+        Test.stopTest();
+    }
+    @isTest
+    public static void testUpdateQuoteRates() {
+        // Create and insert a new Quote
+        quote__c q = new quote__c(Name = 'Quo');
+        insert q;
+
+        // Create and insert a new Quote Item
+        Quote_Item__c q1 = new Quote_Item__c(Name = 'Sample Quote Item', UnitPrice__c = 10, UnitWeight__c = 10, Quantity__c = 10, quote__c = q.Id);
+        insert q1;
+
+        // Test case when updating Quote's TaxRate and ShippingRate
+        q.TaxRate__c = 10;
+        q.ShippingRate__c = 2;
+        
+        Test.startTest();
+        update q;
+        Test.stopTest();
+
+        // Verify Quote totals after updating TaxRate and ShippingRate
+        q = [SELECT Id, Subtotal__c, TotalShipping__c, TotalTax__c, GrandTotal__c FROM quote__c WHERE Id = :q.Id];
+        System.assertEquals(100, q.Subtotal__c, 'Subtotal should be 100');
+        System.assertEquals(200, q.TotalShipping__c, 'Total Shipping should be 200');
+        System.assertEquals(10, q.TotalTax__c, 'Total Tax should be 10');
+        System.assertEquals(110, q.GrandTotal__c, 'Grand Total should be 110');
+    }
+
+    @isTest
+    public static void testUpdateQuoteItem() {
+        // Create and insert a new Quote
+        quote__c q = new quote__c(Name = 'Quo');
+        insert q;
+
+        // Create and insert a new Quote Item
+        Quote_Item__c q1 = new Quote_Item__c(Name = 'Sample Quote Item', UnitPrice__c = 10, UnitWeight__c = 10, Quantity__c = 10, quote__c = q.Id);
+        insert q1;
+
+
+        Test.startTest();
+        q1.UnitPrice__c=20;
+        update q1;
+        Test.stopTest();
+        
+        q = [SELECT Id, Subtotal__c, TotalShipping__c, TotalTax__c, GrandTotal__c FROM quote__c WHERE Id = :q.Id];
+        System.assertEquals(200, q.Subtotal__c, 'Subtotal should be 200');
+        System.assertEquals(150, q.TotalShipping__c, 'Total Shipping should be 1500');
+        System.assertEquals(18.50, q.TotalTax__c, 'Total Tax should be 19.50');
+        System.assertEquals(218.50, q.GrandTotal__c, 'Grand Total should be 218.50');
+    }
+
+    @isTest
+    public static void testDeleteQuoteItem() {
+        // Create and insert a new Quote
+        quote__c q = new quote__c(Name = 'Quo');
+        insert q;
+
+        // Create and insert a new Quote Item
+        Quote_Item__c q1 = new Quote_Item__c(Name = 'Sample Quote Item', UnitPrice__c = 10, UnitWeight__c = 10, Quantity__c = 10, quote__c = q.Id);
+        insert q1;
+
+        // Delete Quote Item
+        Test.startTest();
+        delete q1;
+        Test.stopTest();
+
+        // Verify Quote totals after deleting a Quote Item
+        q = [SELECT Id, Subtotal__c, TotalShipping__c, TotalTax__c, GrandTotal__c FROM quote__c WHERE Id = :q.Id];
+        System.assertEquals(0, q.Subtotal__c, 'Subtotal should be 0');
+        System.assertEquals(0, q.TotalShipping__c, 'Total Shipping should be 0');
+        System.assertEquals(0, q.TotalTax__c, 'Total Tax should be 0');
+        System.assertEquals(0, q.GrandTotal__c, 'Grand Total should be 0');
+    }
+    
+    @isTest
+    Public static void testUpdateQuoteRateQuoteItem(){
+         quote__c q = new quote__c(Name = 'Quo');
+        insert q;
+
+        // Create and insert a new Quote Item
+        Quote_Item__c q1 = new Quote_Item__c(Name = 'Sample Quote Item', UnitPrice__c = 10, UnitWeight__c = 10, Quantity__c = 10, quote__c = q.Id);
+        insert q1;
+
+        // Delete Quote Item
+        Test.startTest();
+        q.TaxRate__c=10;
+        q1.Quantity__c=20;
+        update q;
+        update q1;
+        Test.stopTest();
+         q = [SELECT Id, Subtotal__c, TotalShipping__c, TotalTax__c, GrandTotal__c FROM quote__c WHERE Id = :q.Id];
+        System.assertEquals(200, q.Subtotal__c, 'Subtotal should be 200');
+        System.assertEquals(300, q.TotalShipping__c, 'Total Shipping should be 300');
+        System.assertEquals(20, q.TotalTax__c, 'Total Tax should be 20');
+        System.assertEquals(220, q.GrandTotal__c, 'Grand Total should be 220');
+        
+    }
+}
